@@ -1,0 +1,8 @@
+project_name = "project"
+
+Vagrant.configure("2") do |config|
+	config.vm.box = "hashicorp/precise32"
+	config.vm.network :forwarded_port, host: 8081, guest: 80
+	config.vm.provision "shell", path: "bootstrap.sh", args: [project_name]
+	config.vm.synced_folder "./", "/vagrant", :mount_options => ['dmode=777,fmode=777']
+end
