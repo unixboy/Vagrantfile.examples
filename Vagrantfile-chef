@@ -1,0 +1,207 @@
+
+
+
+
+
+
+
+
+
+
+Cheffile 
+
+# encoding: utf-8
+
+site 'http://community.opscode.com/api/v1'
+
+cookbook 'apt'
+cookbook 'git'
+cookbook 'rbenv', :github => 'fnichol/chef-rbenv'
+cookbook 'ruby_build', :github => 'fnichol/chef-ruby_build', :ref => 'v0.7.2'
+cookbook 'postgresql', :github => 'phlipper/chef-postgresql'
+cookbook 'imagemagick'
+cookbook 'redis', :github => 'getaroom/chef-redis'
+cookbook 'locale', :github => 'deepak/chef-locale'
+cookbook 'oh_my_zsh', :github => 'shingara/oh-my-zsh-chef'
+
+
+Cheffile.lock 
+
+SITE
+  remote: http://community.opscode.com/api/v1
+  specs:
+    apt (1.9.2)
+    build-essential (1.4.0)
+    chef_handler (1.1.4)
+    dmg (1.1.0)
+    git (2.5.0)
+      build-essential (>= 0.0.0)
+      dmg (>= 0.0.0)
+      runit (>= 1.0)
+      windows (>= 0.0.0)
+      yum (>= 0.0.0)
+    imagemagick (0.2.2)
+    runit (1.1.4)
+      build-essential (>= 0.0.0)
+      yum (>= 0.0.0)
+    sysctl (0.3.1)
+    windows (1.8.10)
+      chef_handler (>= 0.0.0)
+    yum (2.2.0)
+
+GIT
+  remote: https://github.com/deepak/chef-locale
+  ref: master
+  sha: 2669bd937f589b6ad542da4eb1baa42cfe251030
+  specs:
+    locale (0.0.2)
+
+GIT
+  remote: https://github.com/fnichol/chef-rbenv
+  ref: master
+  sha: 3b1c59abc1134a50b0b8844954eca9a566aaffb8
+  specs:
+    rbenv (0.7.3)
+
+GIT
+  remote: https://github.com/fnichol/chef-ruby_build
+  ref: v0.7.2
+  sha: c940b5e9cd40eaba10d6285de6648f4d25fe959d
+  specs:
+    ruby_build (0.7.2)
+
+GIT
+  remote: https://github.com/getaroom/chef-redis
+  ref: master
+  sha: 9ad88e02ebe30d800c4955b0a57a9ae7d1e7e7a2
+  specs:
+    redis (4.0.1)
+      runit (>= 0.0.0)
+      sysctl (>= 0.0.0)
+
+GIT
+  remote: https://github.com/phlipper/chef-postgresql
+  ref: master
+  sha: ff499fcff50c1113f74cc32352ebfbede93a06cc
+  specs:
+    postgresql (0.10.1)
+      apt (>= 0.0.0)
+
+GIT
+  remote: https://github.com/shingara/oh-my-zsh-chef
+  ref: master
+  sha: 7da60eca90b9a0b2c2d42b9af02364ab04421043
+  specs:
+    oh_my_zsh (0.0.1)
+      git (>= 0.0.0)
+
+DEPENDENCIES
+  apt (>= 0)
+  git (>= 0)
+  imagemagick (>= 0)
+  locale (>= 0)
+  oh_my_zsh (>= 0)
+  postgresql (>= 0)
+  rbenv (>= 0)
+  redis (>= 0)
+  ruby_build (>= 0)
+
+
+
+
+
+
+
+
+Preparation
+
+Install vagrant from site
+
+$ gem install chef
+$ gem install librarian
+
+Installation
+
+$ librarian-chef install
+$ vagrant up
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# encoding: utf-8
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "opscode_ubuntu-12.04_chef-11.4.4"
+  config.vm.box_url = "https://opscode-vm-bento.s3.amazonaws.com/vagrant/opscode_ubuntu-12.04_chef-11.4.4.box"
+
+  config.vm.network :private_network, ip: "10.255.255.10"
+  config.vm.synced_folder "~/code", "/code"#, :nfs => true
+
+  [4000, 3000, 4567, 5432, 9292].each do |port|
+    config.vm.network :forwarded_port, guest: port, host: port
+  end
+
+  config.vm.provision :chef_solo do |chef|
+    chef.cookbooks_path = ["cookbooks"]
+    chef.add_recipe "apt"
+    chef.add_recipe 'git'
+    chef.add_recipe 'postgresql::server'
+    chef.add_recipe 'postgresql::contrib'
+    chef.add_recipe 'postgresql::server_dev'
+
+    chef.add_recipe 'ruby_build'
+    chef.add_recipe 'rbenv::user'
+    chef.add_recipe 'redis::install_from_package'
+    chef.add_recipe 'oh_my_zsh'
+    chef.add_recipe 'locale'
+    chef.json = {
+      'postgresql' => {
+        "version" => "9.2",
+        "users" => [
+          {
+            "username" => "vagrant",
+            "password" => "password",
+            "superuser" => true,
+            "createdb" => true,
+            "login" => true
+          }
+        ]
+      },
+      'rbenv' => {
+        'user_installs' => [
+          { 'user' => 'vagrant',
+            'rubies' => ['2.0.0-p247'],
+            'global' => '2.0.0-p247',
+            'gems' => {
+              '2.0.0-p247' => %w(bundler pg).collect{|gem_name| { 'name' => gem_name } }
+            }
+          }
+        ]
+      },
+      'oh_my_zsh' => {
+        'users' => [{
+          :login => 'vagrant',
+          :theme => 'mortalscumbag',
+          :plugins => ['gem', 'git', 'rails3', 'redis-cli', 'ruby', 'heroku', 'rake', 'rbenv', 'capistrano']
+        }]
+      }
+    }
+  end
+end
